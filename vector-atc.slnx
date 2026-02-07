@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="vector-atc.vcxproj" Id="3f8a796b-6ab0-4ae1-aade-232dd2bc5809" />
+</Solution>

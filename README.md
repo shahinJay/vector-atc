@@ -2,7 +2,7 @@
 
 ### A minimalist ATC Simulation Platform Using C++ and SFML (with built-in AI for ATC)
 
-![Radar view demo (add gif/screenshot here soon)](assets/screenshots/vecatc-1.gif)
+![Radar view demo (add gif/screenshot here soon)](assets/vecatc-1.gif)
 
 ## Core Features (Current)
 - Aircraft with realistic dynamics: position, velocity, heading, turn rates, climb/descent

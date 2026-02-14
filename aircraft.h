@@ -30,6 +30,7 @@ public:
 	float target_heading;
 	float target_speed;
 	float target_altitude;
+	std::string target_waypoint;
 
 	float turn_rate = 0.01;
 	float accel_rate = 0.001;
@@ -50,17 +51,21 @@ public:
 
 
 	Aircraft(Airspace& airspace, int ID, sf::Vector2f position, float heading, float groundspeed, float altitude);
+
+	//MATH
+	sf::Vector2f heading_to_vector();
+	float random_range(float lower, float upper);
+	float distance(sf::Vector2f vec1, sf::Vector2f vec2);
+
 	void assign_callsign(int ID);
 
-	sf::Vector2f heading_to_vector();
-
-	float random_range(float lower, float upper);
-
+	//
 	void change_heading();
+	void direct_to_waypoint();
 	void change_speed();
 	void change_altitude();
 
-
+	//
 	void parse_command(std::string command, std::vector<std::string>& parsed_command);
 
 	void listen(std::string command);

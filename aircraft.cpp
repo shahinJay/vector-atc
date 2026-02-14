@@ -39,6 +39,11 @@ float Aircraft::random_range(float lower, float upper){
 
 	 return dist(gen);
 }
+
+float Aircraft::distance(sf::Vector2f vec1, sf::Vector2f vec2) {
+	return sqrt((vec2.x - vec1.x) * (vec2.x - vec1.x) + (vec2.y - vec1.y) * (vec2.y - vec1.y));
+}
+
 //---------------------------------------------------------------------------------------------
 void Aircraft::assign_callsign(int ID) {
 	this->callsign = "ABC" + std::to_string(ID);
@@ -46,18 +51,70 @@ void Aircraft::assign_callsign(int ID) {
 }
 //CONTROLS ------------------------------------------------------------------------------------
 void Aircraft::change_heading() {
-	int angle_diff = static_cast<int>(this->target_heading - this->heading)%360;
-	if (angle_diff > 0) {
-		this->heading += this->turn_rate; //TURN RIGHT
-	}
-	else if (angle_diff < 0) {
-		this->heading -= this->turn_rate; //TURN LEFT
-	}
-	else {
-		this->owned = false;
-		this->change_required = false;
+    float diff = std::fmod(this->target_heading - this->heading + 540.0f, 360.0f) - 180.0f;
+
+    if (std::fabs(diff) <= this->turn_rate || std::fabs(diff) < 0.01f) {
+        this->heading = std::fmod(this->target_heading + 360.0f, 360.0f);
+        if (this->heading < 0.0f) this->heading += 360.0f;
+
+        this->owned = false;
+        this->change_required = false;
+        return;
+    }
+
+    if (diff > 0.0f) {
+        this->heading += this->turn_rate; // turn right (increasing heading)
+    } else {
+        this->heading -= this->turn_rate; // turn left (decreasing heading)
+    }
+
+    this->heading = std::fmod(this->heading + 360.0f, 360.0f);
+    if (this->heading < 0.0f) this->heading += 360.0f;
+}
+
+void Aircraft::direct_to_waypoint() {
+    bool found = false;
+
+	sf::Vector2f wp_pos;
+
+
+	std::cout << this->airspace->waypoints_array.size() << std::endl;
+
+
+	for (int i = 0; i < this->airspace->waypoints_array.size(); i++) {
+		std::cout << "in loop" << std::endl;
+        if (this->airspace->waypoints_array[i].wp_name == this->target_waypoint) {
+			std::cout << "found" << std::endl;
+
+            wp_pos = this->airspace->waypoints_array[i].position;
+            found = true;
+            break;
+        }
+		
+    }
+	if (!found) {
+		std::cout << "not found" << std::endl;
 		return;
 	}
+
+	float dx = wp_pos.x - this->position.x;
+	float dy = wp_pos.y - this->position.y;
+
+	float rad = std::atan2(dy, dx);
+	float degrees = rad * this->rad_to_deg - 90;
+
+	if (degrees < 0)
+		degrees += 360;
+
+	int locked_heading = static_cast<int>(std::round(degrees)) % 360;
+
+	std::cout << locked_heading << std::endl;
+
+
+	this->target_heading = locked_heading;
+	this->state_to_change = 0;
+	std::cout << "full exec" << std::endl;
+
 }
 
 void Aircraft::change_speed() {
@@ -133,6 +190,10 @@ void Aircraft::listen(std::string command) {
 				this->state_to_change = 2;
 				this->target_altitude = std::stof(parsed_command[i].substr(1));
 				break;
+			case 'D':
+				this->state_to_change = 3;
+				this->target_waypoint = parsed_command[i].substr(1);
+				break;
 			default:
 				break;
 		}
@@ -190,6 +251,10 @@ void Aircraft::draw(sf::RenderWindow& window) {
 			break;
 		case 2:
 			change_altitude();
+			break;
+		case 3:
+			direct_to_waypoint();
+			
 			break;
 		default:
 			break;

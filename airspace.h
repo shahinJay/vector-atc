@@ -12,7 +12,9 @@ public:
 	struct final_approach_fix {
 		std::string rw_no;
 		sf::Vector2f position;
+		sf::Vector2f rw_position;
 		float heading;
+		
 	};
 
 	struct waypoint {

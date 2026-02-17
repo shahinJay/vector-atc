@@ -29,18 +29,39 @@ public:
 	bool owned = false;
 	bool collision_course = false;
 
-	std::array<bool, 5> states_to_change = { false, false, false, false, false };
-	
+
+	// STATES TO CHANGE                 HEADING  |   SPEED |    ALTITUDE |   WAYPOINT |  RUNWAY/Landing
+	std::array<bool, 5> states_to_change = { false,		false,		false,		false,		false };
+	bool landing_seq = false;
+
 	float target_heading;
 	float target_speed;
 	float target_altitude;
 	std::string target_waypoint;
 	std::string target_runway;
+	Airspace::final_approach_fix target_faf;
 
+	/*
+	Only store target FAF(Final Approach Fixes) as they also contain
+	the information about the runway.
+	*/
+
+
+	// CONSTRAINTS
 	float turn_rate = 0.01f;
 	float accel_rate = 0.001f;
 	float climb_rate = 0.001f;
 
+	int ils_dist_threshold = 40;
+	int ils_angle_threshold = 20;
+
+	int rw_dist_threshold = 5;
+	int rw_angle_threshold = 5;
+
+	int approach_speed = 4;
+	int landing_speed = 2;
+
+	//COLORS, Graphics and assets
 	sf::Color unowned_color = sf::Color(75, 99, 75);
 	sf::Color owned_color = sf::Color::White;
 	sf::Color warning_color = sf::Color::Red;
@@ -63,16 +84,21 @@ public:
 	float distance(sf::Vector2f vec1, sf::Vector2f vec2);
 	int vec_to_angle(sf::Vector2f vec1, sf::Vector2f vec2);
 
-
+	//init
 	void assign_callsign(int ID);
 
-	//
+	//TAKE-OFF / LANDING SEQUENCES
+	void takeoff();
+	void land(Airspace::final_approach_fix);
+
+	//controls
 	void change_heading();
-	void direct_to_runway();
-	void direct_to_waypoint();
 	void change_speed();
 	void change_altitude();
 
+	//routing
+	void direct_to_runway();
+	void direct_to_waypoint();
 
 	//
 	void parse_command(std::string command, std::vector<std::string>& parsed_command);

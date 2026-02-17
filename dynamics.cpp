@@ -97,7 +97,7 @@ void Dynamics::spawn_arrival_traffic(int amount) {
 		if (heading < 0.f)
 			heading += 360.f;
 
-		float speed = random_range(3,7);
+		float speed = random_range(4,7);
 		float altitude = random_range(1000.f, 2000.f);
 
 

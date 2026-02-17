@@ -233,10 +233,12 @@ sf::VertexArray Airspace::spawn_airport(int runways, std::vector<sf::Text>& rw_n
 	faf_2.y = endpos.y + this->ils_range * sin(angle_rad);
 
 	faf.position = faf_1;
+	faf.rw_position = startpos;
 	rw_nos.push_back(gen_rw_number(startpos, endpos, faf));
 	final_approach_fixes.push_back(faf);
 
 	faf.position = faf_2;
+	faf.rw_position = endpos;
 	rw_nos.push_back(gen_rw_number(endpos, startpos, faf));
 	final_approach_fixes.push_back(faf);
 	

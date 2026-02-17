@@ -67,6 +67,39 @@ void Aircraft::assign_callsign(int ID) {
 	this->callsign = "ABC" + std::to_string(ID);
 }
 
+//TAKEOFF / LANDING SEQUENCES -----------------------------------------------------------------
+
+void Aircraft::takeoff() {
+
+}
+
+void Aircraft::land(Airspace::final_approach_fix faf) {
+	float heading_diff = std::fmod(faf.heading - this->heading + 540.0f, 360.0f) - 180.0f;
+	 
+	if ((distance(this->position, faf.position) < ils_dist_threshold) && std::fabs(heading_diff) <= ils_angle_threshold && this->groundspeed <= this->approach_speed) {
+		std::cout << "LANDING..." << std::endl;
+
+		if (heading_diff > rw_angle_threshold) {											// RUNWAY ALIGN
+			this->target_heading = faf.heading;
+			this->states_to_change[0] = true;
+		}
+
+		if (this->groundspeed > this->landing_speed) {										//SLOW DOWN TO LANDING SPEED
+			this->target_speed = this->landing_speed;
+			this->states_to_change[1] = true;
+		}
+
+		if (distance(this->position, faf.rw_position) <= rw_dist_threshold) {
+			this->target_speed = 0;
+			this->states_to_change[1] = true;
+		}
+	}
+	else {
+		std::cout << "CANT LAND, going around...";
+		//GO AROUND SEQUENCE
+	}
+}
+
 
 //CONTROLS ------------------------------------------------------------------------------------
 void Aircraft::change_heading() {
@@ -89,48 +122,6 @@ void Aircraft::change_heading() {
 
     this->heading = std::fmod(this->heading + 360.0f, 360.0f);
     if (this->heading < 0.0f) this->heading += 360.0f;
-}
-
-void Aircraft::direct_to_runway() {
-	bool found = false;
-
-	sf::Vector2f faf_pos;
-
-	for (int i = 0; i < this->airspace->final_approach_fixes.size(); i++) {
-		if (this->airspace->final_approach_fixes[i].rw_no == this->target_runway) {
-			faf_pos = this->airspace->final_approach_fixes[i].position;
-			found = true;
-			break;
-		}
-	}
-	if (!found)
-		return;
-
-	int locked_heading = vec_to_angle(faf_pos, this->position);
-
-	this->target_heading = locked_heading;
-	this->states_to_change[0] = true;
-}
-
-void Aircraft::direct_to_waypoint() {
-    bool found = false;
-
-	sf::Vector2f wp_pos;
-
-	for (int i = 0; i < this->airspace->waypoints_array.size(); i++) {
-        if (this->airspace->waypoints_array[i].wp_name == this->target_waypoint) {
-            wp_pos = this->airspace->waypoints_array[i].position;
-            found = true;
-            break;
-        }
-    }
-	if (!found) 
-		return;
-
-	int locked_heading = vec_to_angle(wp_pos, this->position) - 180;
-
-	this->target_heading = locked_heading;
-	this->states_to_change[0] = true;
 }
 
 void Aircraft::change_speed() {
@@ -160,7 +151,55 @@ void Aircraft::change_altitude() {
 		return;
 	}
 }
-//----------------------------------------------------------------------------------------------
+
+//routing .................................................................
+void Aircraft::direct_to_runway() {													// RUNWAY ROUTING
+	bool found = false;
+
+	sf::Vector2f faf_pos;
+	Airspace::final_approach_fix faf;
+
+	for (int i = 0; i < this->airspace->final_approach_fixes.size(); i++) {
+		if (this->airspace->final_approach_fixes[i].rw_no == this->target_runway) {
+			faf = this->airspace->final_approach_fixes[i];
+
+			faf_pos = this->airspace->final_approach_fixes[i].position;
+			found = true;
+			break;
+		}
+	}
+	if (!found)
+		return;
+
+	this->target_faf = faf;
+
+	int locked_heading = vec_to_angle(faf_pos, this->position) - 180;
+
+	this->target_heading = locked_heading;
+	this->states_to_change[0] = true;
+}
+
+void Aircraft::direct_to_waypoint() {												// WAYPOINT ROUTING
+	bool found = false;
+
+	sf::Vector2f wp_pos;
+
+	for (int i = 0; i < this->airspace->waypoints_array.size(); i++) {
+		if (this->airspace->waypoints_array[i].wp_name == this->target_waypoint) {
+			wp_pos = this->airspace->waypoints_array[i].position;
+			found = true;
+			break;
+		}
+	}
+	if (!found)
+		return;
+
+	int locked_heading = vec_to_angle(wp_pos, this->position) - 180;
+
+	this->target_heading = locked_heading;
+	this->states_to_change[0] = true;
+}
+//..........................................................................
 
 //COMMAND --------------------------------------------------------------------------------------
 
@@ -189,7 +228,7 @@ void Aircraft::listen(std::string command) {
 		return;
 	}
 
-	//INSTRUCTION PROCESSING -------------------------------------------------------------------
+	//INSTRUCTION PROCESSING ...................................................................
 	std::cout << this->callsign;
 	std::cout << " ";
 	for (int i = 1; i < parsed_command.size(); i++) {
@@ -263,8 +302,6 @@ void Aircraft::draw(sf::RenderWindow& window) {
 	//UPDATE STATES------------------------------------------------------------------------------------
 	if (this->owned || this->change_required) {
 		this->target_color = this->owned_color;
-
-		std::cout << this->heading << std::endl;
 		
 		if(this->states_to_change[1])
 			change_speed();
@@ -276,16 +313,28 @@ void Aircraft::draw(sf::RenderWindow& window) {
 
 		if (this->states_to_change[3])
 			direct_to_waypoint();
-		else if (this->states_to_change[4])
-			direct_to_runway();
 
+		else if (this->states_to_change[4]) {
+			direct_to_runway(); // THIS IS GETTING MESSY.. might wanna fix these
+
+			if (distance(this->target_faf.position, this->position) <= this->ils_dist_threshold)
+			{
+				std::cout << "LANDING SEQ INITIATED OR WTW" << std::endl;
+				land(this->target_faf);
+
+			}
+
+		}
 		this->velocity = heading_to_vector();
 	}
 	else if (collision_course)
 		this->target_color = this->warning_color;
-	else
+	else {
+		this->states_to_change = { false, false, false, false, false };
 		this->target_color = this->unowned_color;
+	}
 
+	
 	//DRAWING THE TARGET------------------------------------------------------------------------------
 	for (int i = 0; i < 4; i++) {
 		curr.x = this->position.x + this->rect_size * cos((i * 90 * deg_to_rad) + (45 * deg_to_rad));

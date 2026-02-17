@@ -100,7 +100,9 @@ void Dynamics::spawn_arrival_traffic(int amount) {
 		float speed = random_range(3,7);
 		float altitude = random_range(1000.f, 2000.f);
 
+
 		Aircraft aircraft(*this->airspace, i, position, heading, speed, altitude);
+		
 
 		this->aircrafts.push_back(aircraft);
 	}

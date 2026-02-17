@@ -19,6 +19,8 @@ Aircraft::Aircraft(Airspace& airspace, int ID, sf::Vector2f position, float head
 	this->target_altitude = this->altitude;
 
 	this->velocity = heading_to_vector();
+
+	this->airspace = &airspace;
 	
 
 	if (!this->font.openFromFile(this->fontpath)) {
@@ -78,9 +80,6 @@ void Aircraft::direct_to_waypoint() {
 	sf::Vector2f wp_pos;
 
 
-	std::cout << this->airspace->waypoints_array.size() << std::endl;
-
-
 	for (int i = 0; i < this->airspace->waypoints_array.size(); i++) {
 		std::cout << "in loop" << std::endl;
         if (this->airspace->waypoints_array[i].wp_name == this->target_waypoint) {
@@ -101,7 +100,7 @@ void Aircraft::direct_to_waypoint() {
 	float dy = wp_pos.y - this->position.y;
 
 	float rad = std::atan2(dy, dx);
-	float degrees = rad * this->rad_to_deg - 90;
+	float degrees = rad * this->rad_to_deg;
 
 	if (degrees < 0)
 		degrees += 360;
@@ -110,11 +109,9 @@ void Aircraft::direct_to_waypoint() {
 
 	std::cout << locked_heading << std::endl;
 
-
 	this->target_heading = locked_heading;
 	this->state_to_change = 0;
 	std::cout << "full exec" << std::endl;
-
 }
 
 void Aircraft::change_speed() {

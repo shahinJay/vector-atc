@@ -3,8 +3,10 @@
 #include <SFML/Graphics.hpp>
 #include <random>
 #include <iostream>
+#include <array>
 
 #include "airspace.h"
+
 
 
 class Aircraft {
@@ -27,14 +29,17 @@ public:
 	bool owned = false;
 	bool collision_course = false;
 
+	std::array<bool, 5> states_to_change = { false, false, false, false, false };
+	
 	float target_heading;
 	float target_speed;
 	float target_altitude;
 	std::string target_waypoint;
+	std::string target_runway;
 
-	float turn_rate = 0.01;
-	float accel_rate = 0.001;
-	float climb_rate = 0.001;
+	float turn_rate = 0.01f;
+	float accel_rate = 0.001f;
+	float climb_rate = 0.001f;
 
 	sf::Color unowned_color = sf::Color(75, 99, 75);
 	sf::Color owned_color = sf::Color::White;
@@ -56,14 +61,18 @@ public:
 	sf::Vector2f heading_to_vector();
 	float random_range(float lower, float upper);
 	float distance(sf::Vector2f vec1, sf::Vector2f vec2);
+	int vec_to_angle(sf::Vector2f vec1, sf::Vector2f vec2);
+
 
 	void assign_callsign(int ID);
 
 	//
 	void change_heading();
+	void direct_to_runway();
 	void direct_to_waypoint();
 	void change_speed();
 	void change_altitude();
+
 
 	//
 	void parse_command(std::string command, std::vector<std::string>& parsed_command);

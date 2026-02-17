@@ -46,11 +46,28 @@ float Aircraft::distance(sf::Vector2f vec1, sf::Vector2f vec2) {
 	return sqrt((vec2.x - vec1.x) * (vec2.x - vec1.x) + (vec2.y - vec1.y) * (vec2.y - vec1.y));
 }
 
+int Aircraft::vec_to_angle(sf::Vector2f vec1, sf::Vector2f vec2) {
+	float dx = vec2.x - vec1.x;
+	float dy = vec2.y - vec1.y;
+
+	float rad = std::atan2(dy, dx);
+	float degrees = rad * this->rad_to_deg;
+
+	if (degrees < 0)
+		degrees += 360;
+
+	int angle_to = static_cast<int>(std::round(degrees)) % 360;
+
+	return angle_to; 
+}
+
+
 //---------------------------------------------------------------------------------------------
 void Aircraft::assign_callsign(int ID) {
 	this->callsign = "ABC" + std::to_string(ID);
-
 }
+
+
 //CONTROLS ------------------------------------------------------------------------------------
 void Aircraft::change_heading() {
     float diff = std::fmod(this->target_heading - this->heading + 540.0f, 360.0f) - 180.0f;
@@ -74,44 +91,46 @@ void Aircraft::change_heading() {
     if (this->heading < 0.0f) this->heading += 360.0f;
 }
 
+void Aircraft::direct_to_runway() {
+	bool found = false;
+
+	sf::Vector2f faf_pos;
+
+	for (int i = 0; i < this->airspace->final_approach_fixes.size(); i++) {
+		if (this->airspace->final_approach_fixes[i].rw_no == this->target_runway) {
+			faf_pos = this->airspace->final_approach_fixes[i].position;
+			found = true;
+			break;
+		}
+	}
+	if (!found)
+		return;
+
+	int locked_heading = vec_to_angle(faf_pos, this->position);
+
+	this->target_heading = locked_heading;
+	this->states_to_change[0] = true;
+}
+
 void Aircraft::direct_to_waypoint() {
     bool found = false;
 
 	sf::Vector2f wp_pos;
 
-
 	for (int i = 0; i < this->airspace->waypoints_array.size(); i++) {
-		std::cout << "in loop" << std::endl;
         if (this->airspace->waypoints_array[i].wp_name == this->target_waypoint) {
-			std::cout << "found" << std::endl;
-
             wp_pos = this->airspace->waypoints_array[i].position;
             found = true;
             break;
         }
-		
     }
-	if (!found) {
-		std::cout << "not found" << std::endl;
+	if (!found) 
 		return;
-	}
 
-	float dx = wp_pos.x - this->position.x;
-	float dy = wp_pos.y - this->position.y;
-
-	float rad = std::atan2(dy, dx);
-	float degrees = rad * this->rad_to_deg;
-
-	if (degrees < 0)
-		degrees += 360;
-
-	int locked_heading = static_cast<int>(std::round(degrees)) % 360;
-
-	std::cout << locked_heading << std::endl;
+	int locked_heading = vec_to_angle(wp_pos, this->position) - 180;
 
 	this->target_heading = locked_heading;
-	this->state_to_change = 0;
-	std::cout << "full exec" << std::endl;
+	this->states_to_change[0] = true;
 }
 
 void Aircraft::change_speed() {
@@ -160,6 +179,7 @@ void Aircraft::listen(std::string command) {
 
 	parse_command(command, parsed_command);
 
+
 	if (parsed_command[0] == this->callsign) {
 		this->owned = true;
 		this->change_required = true;
@@ -175,21 +195,25 @@ void Aircraft::listen(std::string command) {
 	for (int i = 1; i < parsed_command.size(); i++) {
 		std::cout << parsed_command[i] << std::endl;
 		switch (parsed_command[i][0]) {
-			case 'H':
-				this->state_to_change = 0;
+			case 'H':	//HEADING
+				this->states_to_change[0] = true;
 				this->target_heading = (std::stoi(parsed_command[i].substr(1))-90);
 				break;
-			case 'S':
-				this->state_to_change = 1;
+			case 'S':	//SPEED
+				this->states_to_change[1] = true;
 				this->target_speed = std::stof(parsed_command[i].substr(1));
 				break;
-			case 'A':
-				this->state_to_change = 2;
+			case 'A':	//ALTITUDE
+				this->states_to_change[2] = true;
 				this->target_altitude = std::stof(parsed_command[i].substr(1));
 				break;
-			case 'D':
-				this->state_to_change = 3;
+			case 'D':	//WAYPOINT
+				this->states_to_change[3] = true;
 				this->target_waypoint = parsed_command[i].substr(1);
+				break;
+			case 'L':	//LANDING/ILS
+				this->states_to_change[4] = true;
+				this->target_runway = parsed_command[i].substr(1);
 				break;
 			default:
 				break;
@@ -234,28 +258,27 @@ void Aircraft::draw(sf::RenderWindow& window) {
 	sf::VertexArray points(sf::PrimitiveType::LineStrip);
 	sf::Vector2f curr;
 
+	
 
 	//UPDATE STATES------------------------------------------------------------------------------------
 	if (this->owned || this->change_required) {
 		this->target_color = this->owned_color;
 
-		switch (this->state_to_change) {
-		case 0:
-			change_heading();
-			break;
-		case 1:
+		std::cout << this->heading << std::endl;
+		
+		if(this->states_to_change[1])
 			change_speed();
-			break;
-		case 2:
+		if(this->states_to_change[2])
 			change_altitude();
-			break;
-		case 3:
+
+		if (this->states_to_change[0])
+			change_heading();
+
+		if (this->states_to_change[3])
 			direct_to_waypoint();
-			
-			break;
-		default:
-			break;
-		}
+		else if (this->states_to_change[4])
+			direct_to_runway();
+
 		this->velocity = heading_to_vector();
 	}
 	else if (collision_course)
@@ -281,6 +304,8 @@ void Aircraft::draw(sf::RenderWindow& window) {
 
 	points.append(sf::Vertex(curr, this->target_color));
 	
+	
+
 	curr.x = this->position.x + this->rect_size * 5 * cos(315 * deg_to_rad);
 	curr.y = this->position.y + this->rect_size * 5 * sin(315 * deg_to_rad);
 
@@ -292,5 +317,5 @@ void Aircraft::draw(sf::RenderWindow& window) {
 
 	update_label(window);
 	//-------------------------------------------------------------------------------------------------
-
+	
 }

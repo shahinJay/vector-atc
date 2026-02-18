@@ -58,14 +58,20 @@ public:
 	int rw_dist_threshold = 5;
 	int rw_angle_threshold = 5;
 
-	int approach_speed = 4;
+	int approach_speed = 7;
 	int landing_speed = 2;
+
+	//
+	bool LAND = false;
+	bool TAKEOFF = false;
 
 	//COLORS, Graphics and assets
 	sf::Color unowned_color = sf::Color(75, 99, 75);
 	sf::Color owned_color = sf::Color::White;
 	sf::Color warning_color = sf::Color::Red;
 	sf::Color target_color = sf::Color(75, 99, 75);
+
+	sf::Color landing_color = sf::Color::Blue;
 	float rect_size = 7;
 
 	sf::Vector2f label_point;
@@ -89,7 +95,8 @@ public:
 
 	//TAKE-OFF / LANDING SEQUENCES
 	void takeoff();
-	void land(Airspace::final_approach_fix);
+	void land();
+	void check_landing_conditions(Airspace::final_approach_fix);
 
 	//controls
 	void change_heading();

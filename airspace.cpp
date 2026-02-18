@@ -145,7 +145,7 @@ sf::Text Airspace::gen_rw_number(sf::Vector2f startpos, sf::Vector2f endpos, fin
 	text.setPosition(startpos);
 
 	//STORING FAF DATA
-	faf.heading = heading;
+	faf.heading = heading - 90.f;
 	faf.rw_no = rw_marker;
 
 	return text;

@@ -73,33 +73,54 @@ void Aircraft::takeoff() {
 
 }
 
-void Aircraft::land(Airspace::final_approach_fix faf) {
-	float heading_diff = std::fmod(faf.heading - this->heading + 540.0f, 360.0f) - 180.0f;
-	 
-	if ((distance(this->position, faf.position) < ils_dist_threshold) && std::fabs(heading_diff) <= ils_angle_threshold && this->groundspeed <= this->approach_speed) {
-		std::cout << "LANDING..." << std::endl;
+void Aircraft::land() {
+	float heading_diff = std::fmod(this->target_faf.heading - this->heading + 540.0f, 360.0f) - 180.0f;
 
-		if (heading_diff > rw_angle_threshold) {											// RUNWAY ALIGN
-			this->target_heading = faf.heading;
-			this->states_to_change[0] = true;
-		}
+	bool rw_align_angle = heading_diff <= rw_angle_threshold;
+	bool slow_down = this->groundspeed <= this->landing_speed;
+	bool rw_align_dist = distance(this->position, this->target_faf.rw_position) >= rw_dist_threshold;
 
-		if (this->groundspeed > this->landing_speed) {										//SLOW DOWN TO LANDING SPEED
-			this->target_speed = this->landing_speed;
-			this->states_to_change[1] = true;
-		}
-
-		if (distance(this->position, faf.rw_position) <= rw_dist_threshold) {
-			this->target_speed = 0;
-			this->states_to_change[1] = true;
-		}
+	if (!rw_align_angle) {											// RUNWAY ALIGN
+		//std::cout << "1st cond" << std::endl;
+		this->target_heading = this->target_faf.heading;
+		this->states_to_change[0] = true;
 	}
-	else {
-		std::cout << "CANT LAND, going around...";
-		//GO AROUND SEQUENCE
+
+	if (!slow_down) {										//SLOW DOWN TO LANDING SPEED
+		//std::cout << "TArget:  ";
+		//std::cout << this->target_speed;
+		//std::cout << "----  curr: ";
+		//std::cout << this->groundspeed << std::endl;
+
+		this->target_speed = this->landing_speed;
+		this->states_to_change[1] = true;
+	}
+	if (!rw_align_dist) {
+		std::cout << "3rd" << std::endl;
+		this->target_speed = 0;
+		this->states_to_change[1] = true;
+	}
+
+	if (rw_align_angle && slow_down && rw_align_angle) {
+		std::cout << "LANDED" << std::endl;
+		this->states_to_change = { false, false, false, false, false };
+		this->LAND = false;										//LANDED SUCCESFULLY
 	}
 }
 
+void Aircraft::check_landing_conditions(Airspace::final_approach_fix faf) {
+	float heading_diff = std::fmod(faf.heading - this->heading + 540.0f, 360.0f) - 180.0f;
+	
+	if ((distance(this->position, faf.position) < ils_dist_threshold))
+	{
+		if (std::fabs(heading_diff) <= ils_angle_threshold && this->groundspeed <= this->approach_speed) {
+			this->LAND = true;
+		}
+		else {
+			std::cout << "CANT LAND, going around..." << std::endl;
+		}
+	}
+}
 
 //CONTROLS ------------------------------------------------------------------------------------
 void Aircraft::change_heading() {
@@ -300,6 +321,9 @@ void Aircraft::draw(sf::RenderWindow& window) {
 	
 
 	//UPDATE STATES------------------------------------------------------------------------------------
+		
+	
+
 	if (this->owned || this->change_required) {
 		this->target_color = this->owned_color;
 		
@@ -314,27 +338,31 @@ void Aircraft::draw(sf::RenderWindow& window) {
 		if (this->states_to_change[3])
 			direct_to_waypoint();
 
-		else if (this->states_to_change[4]) {
-			direct_to_runway(); // THIS IS GETTING MESSY.. might wanna fix these
-
-			if (distance(this->target_faf.position, this->position) <= this->ils_dist_threshold)
-			{
-				std::cout << "LANDING SEQ INITIATED OR WTW" << std::endl;
-				land(this->target_faf);
-
-			}
-
-		}
 		this->velocity = heading_to_vector();
 	}
 	else if (collision_course)
 		this->target_color = this->warning_color;
 	else {
-		this->states_to_change = { false, false, false, false, false };
+		this->states_to_change[0] = false;
+		this->states_to_change[1] = false;
+		this->states_to_change[2] = false;
+
 		this->target_color = this->unowned_color;
 	}
 
-	
+	//TAKEOFF / LANDING 
+	if (this->states_to_change[4]) {
+		direct_to_runway();
+		check_landing_conditions(this->target_faf);
+	}
+
+
+	if (LAND) {
+		this->target_color = landing_color;
+		land();
+		std::cout << this->states_to_change[1] << std::endl;
+	}
+
 	//DRAWING THE TARGET------------------------------------------------------------------------------
 	for (int i = 0; i < 4; i++) {
 		curr.x = this->position.x + this->rect_size * cos((i * 90 * deg_to_rad) + (45 * deg_to_rad));
@@ -352,7 +380,6 @@ void Aircraft::draw(sf::RenderWindow& window) {
 	curr.y = this->position.y + this->rect_size * sin(315 * deg_to_rad);
 
 	points.append(sf::Vertex(curr, this->target_color));
-	
 	
 
 	curr.x = this->position.x + this->rect_size * 5 * cos(315 * deg_to_rad);

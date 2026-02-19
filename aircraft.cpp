@@ -29,6 +29,11 @@ Aircraft::Aircraft(Airspace& airspace, int ID, sf::Vector2f position, float head
 
 }
 
+void Aircraft::selfDestruct() {
+	delete this;
+}
+
+
 //MATH----------------------------------------------------------------------------------------
 sf::Vector2f Aircraft::heading_to_vector() {
 	return sf::Vector2f(cos(this->heading * this->deg_to_rad) * this->groundspeed, sin(this->heading * this->deg_to_rad)*this->groundspeed);
@@ -74,37 +79,10 @@ void Aircraft::takeoff() {
 }
 
 void Aircraft::land() {
-	float heading_diff = std::fmod(this->target_faf.heading - this->heading + 540.0f, 360.0f) - 180.0f;
+	this->groundspeed = this->landing_speed;
 
-	bool rw_align_angle = heading_diff <= rw_angle_threshold;
-	bool slow_down = this->groundspeed <= this->landing_speed;
-	bool rw_align_dist = distance(this->position, this->target_faf.rw_position) >= rw_dist_threshold;
-
-	if (!rw_align_angle) {											// RUNWAY ALIGN
-		//std::cout << "1st cond" << std::endl;
-		this->target_heading = this->target_faf.heading;
-		this->states_to_change[0] = true;
-	}
-
-	if (!slow_down) {										//SLOW DOWN TO LANDING SPEED
-		//std::cout << "TArget:  ";
-		//std::cout << this->target_speed;
-		//std::cout << "----  curr: ";
-		//std::cout << this->groundspeed << std::endl;
-
-		this->target_speed = this->landing_speed;
-		this->states_to_change[1] = true;
-	}
-	if (!rw_align_dist) {
-		std::cout << "3rd" << std::endl;
-		this->target_speed = 0;
-		this->states_to_change[1] = true;
-	}
-
-	if (rw_align_angle && slow_down && rw_align_angle) {
-		std::cout << "LANDED" << std::endl;
-		this->states_to_change = { false, false, false, false, false };
-		this->LAND = false;										//LANDED SUCCESFULLY
+	if (distance(this->target_faf.rw_position, this->position) < 10) {
+		this->LANDED = true;
 	}
 }
 
@@ -114,7 +92,10 @@ void Aircraft::check_landing_conditions(Airspace::final_approach_fix faf) {
 	if ((distance(this->position, faf.position) < ils_dist_threshold))
 	{
 		if (std::fabs(heading_diff) <= ils_angle_threshold && this->groundspeed <= this->approach_speed) {
+			this->position = this->target_faf.position;
+			this->heading = this->target_faf.heading;
 			this->LAND = true;
+			this->states_to_change = { false, false, false, false, false };
 		}
 		else {
 			std::cout << "CANT LAND, going around..." << std::endl;
@@ -239,7 +220,6 @@ void Aircraft::listen(std::string command) {
 
 	parse_command(command, parsed_command);
 
-
 	if (parsed_command[0] == this->callsign) {
 		this->owned = true;
 		this->change_required = true;
@@ -356,11 +336,10 @@ void Aircraft::draw(sf::RenderWindow& window) {
 		check_landing_conditions(this->target_faf);
 	}
 
-
 	if (LAND) {
 		this->target_color = landing_color;
 		land();
-		std::cout << this->states_to_change[1] << std::endl;
+		if (this->LANDED) return;
 	}
 
 	//DRAWING THE TARGET------------------------------------------------------------------------------

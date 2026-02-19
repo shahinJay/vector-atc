@@ -65,6 +65,8 @@ public:
 	bool LAND = false;
 	bool TAKEOFF = false;
 
+	bool LANDED = false;
+
 	//COLORS, Graphics and assets
 	sf::Color unowned_color = sf::Color(75, 99, 75);
 	sf::Color owned_color = sf::Color::White;
@@ -83,7 +85,7 @@ public:
 
 
 	Aircraft(Airspace& airspace, int ID, sf::Vector2f position, float heading, float groundspeed, float altitude);
-
+	void selfDestruct();
 	//MATH
 	sf::Vector2f heading_to_vector();
 	float random_range(float lower, float upper);

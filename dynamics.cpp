@@ -45,7 +45,6 @@ void Dynamics::acas() {
 void Dynamics::spawn_departure_traffic() {
 
 }
-
 sf::Vector2f Dynamics::set_arrival_position() {
 	// Choose region in [0,3]
 	int region = static_cast<int>(std::floor(random_range(0.f, 4.f)));
@@ -125,10 +124,18 @@ void Dynamics::atc_transmit(std::string command) {
 
 void Dynamics::run_traffic() {
 	acas();
-	for (Aircraft& aircraft : this->aircrafts) {
+
+
+	for (auto& aircraft : this->aircrafts) {
 		aircraft.position.x += aircraft.velocity.x;
 		aircraft.position.y += aircraft.velocity.y;
+
 	}
+	
+	/*STORE AIRCRAFTS AS POINTERS TO THE OBJECTS ONLY IN THIS->AIRCRAFTS
+	* JUST COPY THEM AROUND.. SO YOU DONT HIT THE WALL OF 'ERROR COPYING CONSTANTS'
+	* 
+	* */
 }
 
 void Dynamics::draw_aircrafts() {
